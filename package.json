@@ -1,0 +1,40 @@
+{
+  "name": "voice-dock",
+  "version": "1.0.0",
+  "description": "The control bar of a live voice session as a React component: status, microphone, screen sharing, exit and a menu, drawn as beads on one thread.",
+  "keywords": [
+    "react",
+    "react-component",
+    "voice",
+    "call",
+    "call-controls",
+    "toolbar",
+    "mute",
+    "screen-share",
+    "svg",
+    "spring-animation"
+  ],
+  "homepage": "https://likemiens.com/ui/voice-dock",
+  "bugs": {
+    "url": "https://github.com/Likemiens/voice-dock/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Likemiens/voice-dock.git"
+  },
+  "license": "MIT",
+  "author": {
+    "name": "Likemiens",
+    "url": "https://github.com/Likemiens"
+  },
+  "private": true,
+  "type": "module",
+  "main": "./voice-dock.tsx",
+  "files": [
+    "voice-dock.tsx",
+    "voice-dock.css"
+  ],
+  "peerDependencies": {
+    "react": ">=19.2"
+  }
+}

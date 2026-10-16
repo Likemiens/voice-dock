@@ -1,0 +1,354 @@
+/* <VoiceDock>, see voice-dock.tsx. The script draws the beads and their necks into one SVG and places the
+   buttons over them; here are the icons, the words, the tooltips and the colours. The colours come from
+   --vd-* on any ancestor. Nothing glows: a state is told by colour and by motion. */
+.vd {
+  --_surface: var(--vd-surface, #eaebe9);
+  --_ink: var(--vd-ink, #3f4247);
+  --_quiet: var(--vd-quiet, #caccc9);
+  --_live: var(--vd-live, #5eb948);
+  --_warn: var(--vd-warn, #e8a13a);
+  --_danger: var(--vd-danger, #e5484d);
+  --_focus: var(--vd-focus, #0c75f1);
+  position: relative;
+  display: inline-block;
+  height: 48px;
+  vertical-align: middle;
+  color: var(--_ink);
+  font-family: var(--ui-font);
+  opacity: 0;
+  transition: opacity 300ms ease-out;
+  -webkit-tap-highlight-color: transparent;
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+/* the first frame is drawn */
+.vd[data-ready] {
+  opacity: 1;
+}
+
+.vd-surface {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+  fill: var(--_surface);
+  pointer-events: none;
+}
+
+.vd-bead {
+  position: absolute;
+  top: 0;
+  left: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 20px;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  letter-spacing: 0;
+  cursor: pointer;
+  outline: none;
+}
+
+.vd-bead:disabled {
+  cursor: default;
+}
+
+.vd-bead:focus-visible {
+  outline: 2px solid var(--_focus);
+  outline-offset: 2px;
+}
+
+.vd-status {
+  overflow: hidden;
+  cursor: default;
+}
+
+.vd-exit {
+  overflow: hidden;
+}
+
+.vd-sr {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+/* ── The status: a dot, and a word while the session is not live ─────────────────────────────────── */
+
+.vd-dot {
+  position: relative;
+  flex: none;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--_quiet);
+  transition: background-color 300ms ease-out;
+}
+
+.vd[data-status="live"] .vd-dot {
+  background: var(--_live);
+}
+
+/* live: every few seconds a hairline ring leaves the dot and fades */
+.vd[data-status="live"] .vd-dot::after {
+  position: absolute;
+  inset: -1px;
+  border: 1px solid var(--_live);
+  border-radius: 50%;
+  content: "";
+  opacity: 0;
+  animation: vd-ping 2.8s cubic-bezier(0.22, 0.61, 0.36, 1) infinite;
+}
+
+@keyframes vd-ping {
+  0% {
+    inset: -1px;
+    opacity: 0.7;
+  }
+  60%,
+  100% {
+    inset: -8px;
+    opacity: 0;
+  }
+}
+
+.vd[data-status="connecting"] .vd-dot,
+.vd[data-status="reconnecting"] .vd-dot {
+  background: var(--_warn);
+  animation: vd-blink 1.2s ease-in-out infinite;
+}
+
+.vd[data-status="reconnecting"] .vd-dot {
+  animation-duration: 0.7s;
+}
+
+@keyframes vd-blink {
+  50% {
+    opacity: 0.35;
+  }
+}
+
+.vd-status .vd-word {
+  flex: none;
+  width: 0;
+  overflow: hidden;
+  color: color-mix(in srgb, var(--_ink) 72%, var(--_surface));
+  font-size: 17px;
+  font-weight: 500;
+  line-height: 1;
+  white-space: nowrap;
+  opacity: 0;
+}
+
+/* ── The voice: seven bars; muted, a slash is drawn across them ──────────────────────────────────── */
+
+.vd-wave {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  height: 28px;
+}
+
+.vd-wave i {
+  width: 2.6px;
+  height: 3px;
+  border-radius: 2px;
+  background: var(--_quiet);
+  transition: background-color 250ms ease-out;
+}
+
+.vd[data-talking] .vd-wave i {
+  background: var(--_live);
+}
+
+/* The slash runs from the top left to the bottom right. Its wide twin in the surface colour cuts the bars
+   where it passes; the script draws both in on mute and sweeps them out past the end on unmute. */
+.vd-slash {
+  position: absolute;
+  width: 40px;
+  height: 40px;
+  overflow: visible;
+  fill: none;
+  stroke-linecap: round;
+  pointer-events: none;
+}
+
+.vd-slash path {
+  stroke-dasharray: 1;
+  stroke-dashoffset: 1;
+}
+
+.vd-slash-cut {
+  stroke: var(--_surface);
+  stroke-width: 7px;
+}
+
+.vd-slash-line {
+  stroke: var(--_ink);
+  stroke-width: 2.4px;
+  transition: stroke 200ms ease-out;
+}
+
+.vd[data-muted] .vd-slash path {
+  stroke-dashoffset: 0;
+}
+
+/* ── The screen: a window, green while it is shared ──────────────────────────────────────────────── */
+
+.vd-window {
+  position: relative;
+  width: 34px;
+  height: 28px;
+  border-radius: 7px;
+  background: var(--_quiet);
+  transition:
+    background-color 250ms ease-out,
+    opacity 250ms ease-out;
+}
+
+.vd-window i {
+  position: absolute;
+  top: 5px;
+  width: 3.5px;
+  height: 3.5px;
+  border-radius: 50%;
+  background: #fff;
+}
+
+.vd-window i:nth-child(1) {
+  left: 5px;
+}
+
+.vd-window i:nth-child(2) {
+  left: 10.5px;
+}
+
+.vd-window i:nth-child(3) {
+  left: 16px;
+}
+
+.vd-screen:disabled .vd-window {
+  opacity: 0.5;
+}
+
+.vd[data-sharing] .vd-window {
+  background: var(--_live);
+}
+
+/* ── Exit: one word; after the first press, a question ───────────────────────────────────────────── */
+
+.vd-exit .vd-word {
+  font-size: 23px;
+  font-weight: 500;
+  line-height: 1;
+  white-space: nowrap;
+  animation: vd-word-in 240ms cubic-bezier(0.23, 1, 0.32, 1);
+  transition: color 200ms ease-out;
+}
+
+.vd[data-armed] .vd-exit .vd-word {
+  color: var(--_danger);
+}
+
+@keyframes vd-word-in {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+}
+
+/* ── The menu: four dots that turn while it is open ──────────────────────────────────────────────── */
+
+.vd-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 12px);
+  gap: 1px;
+  transition: transform 450ms cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.vd-grid i {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: var(--_ink);
+}
+
+.vd[data-menu] .vd-grid {
+  transform: rotate(45deg) scale(0.86);
+}
+
+/* ── Tooltips over the icon beads; they keep their size whatever size the dock is (--vd-zoom) ────── */
+
+.vd-tip {
+  position: absolute;
+  bottom: calc(100% + 10px / var(--vd-zoom, 1));
+  left: 50%;
+  padding: calc(7px / var(--vd-zoom, 1)) calc(9px / var(--vd-zoom, 1)) calc(8px / var(--vd-zoom, 1));
+  border-radius: calc(8px / var(--vd-zoom, 1));
+  background: #232b35;
+  color: #fff;
+  font-size: calc(13px / var(--vd-zoom, 1));
+  font-weight: 500;
+  line-height: 1;
+  white-space: nowrap;
+  opacity: 0;
+  transform: translate(-50%, 4px);
+  transition:
+    opacity 150ms ease-out,
+    transform 150ms ease-out;
+  pointer-events: none;
+}
+
+.vd-bead:focus-visible .vd-tip {
+  opacity: 1;
+  transform: translate(-50%, 0);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .vd-bead:hover .vd-tip {
+    opacity: 1;
+    transform: translate(-50%, 0);
+    transition-delay: 450ms;
+  }
+
+  .vd:not([data-sharing]) .vd-screen:not(:disabled):hover .vd-window {
+    background: color-mix(in srgb, var(--_quiet) 78%, var(--_ink));
+  }
+
+  /* a muted voice under the pointer: the slash lifts a little, the bars stir (voice-dock.tsx) */
+  .vd[data-muted] .vd-voice:not(:disabled):hover .vd-slash-line {
+    stroke: color-mix(in srgb, var(--_ink) 50%, var(--_surface));
+  }
+}
+
+/* an open menu covers where its tooltip would be */
+.vd[data-menu] .vd-menu .vd-tip {
+  visibility: hidden;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .vd-dot,
+  .vd-dot::after {
+    animation: none !important;
+  }
+
+  .vd-exit .vd-word {
+    animation: none;
+  }
+
+  .vd-grid,
+  .vd-tip {
+    transition: none;
+  }
+}
