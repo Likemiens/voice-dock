@@ -1,6 +1,10 @@
-/* <VoiceDock>, see voice-dock.tsx. The script draws the beads and their necks into one SVG and places the
-   buttons over them; here are the icons, the words, the tooltips and the colours. The colours come from
-   --vd-* on any ancestor. Nothing glows: a state is told by colour and by motion. */
+/* <VoiceDock>, see voice-dock.tsx. The script draws the thread's outline into one SVG and places the buttons
+   over it; here are the outline's layers, the icons, the words, the tooltips and the colours. The colours come
+   from --vd-* on any ancestor.
+
+   Two looks. "flat" is the plain grey of the first reference: no glow, a state is told by colour and motion.
+   "glass" is smoked glass tinted bead by bead with the colour of its state, a rim and a sheen on top, and the
+   icons and words that carry a state are lit, as on a dark phone screen. */
 .vd {
   --_surface: var(--vd-surface, #eaebe9);
   --_ink: var(--vd-ink, #3f4247);
@@ -8,6 +12,7 @@
   --_live: var(--vd-live, #5eb948);
   --_warn: var(--vd-warn, #e8a13a);
   --_danger: var(--vd-danger, #e5484d);
+  --_share: var(--vd-share, var(--_live));
   --_focus: var(--vd-focus, #0c75f1);
   position: relative;
   display: inline-block;
@@ -22,10 +27,23 @@
   user-select: none;
 }
 
+.vd[data-appearance="glass"] {
+  --_surface: var(--vd-glass, rgb(24 24 27 / 92%));
+  --_ink: var(--vd-ink, rgb(255 255 255 / 92%));
+  --_quiet: var(--vd-quiet, rgb(255 255 255 / 30%));
+  --_live: var(--vd-live, #4ade80);
+  --_warn: var(--vd-warn, #facc15);
+  --_danger: var(--vd-danger, #fb7185);
+  --_share: var(--vd-share, #38bdf8);
+  --_focus: var(--vd-focus, #7cc4ff);
+}
+
 /* the first frame is drawn */
 .vd[data-ready] {
   opacity: 1;
 }
+
+/* ── The outline: the body, then in glass a tint, a sheen and a rim ──────────────────────────────── */
 
 .vd-surface {
   position: absolute;
@@ -33,9 +51,97 @@
   width: 100%;
   height: 100%;
   overflow: visible;
-  fill: var(--_surface);
   pointer-events: none;
 }
+
+.vd-body {
+  fill: var(--_surface);
+}
+
+.vd-tint,
+.vd-sheen,
+.vd-rim {
+  display: none;
+}
+
+.vd[data-appearance="glass"] :is(.vd-tint, .vd-sheen, .vd-rim) {
+  display: inline;
+}
+
+.vd-rim {
+  fill: none;
+  stroke-width: 2px;
+}
+
+/* a bead's colour sits at its middle and blends into its neighbour's across the waist */
+.vd-tint-stop,
+.vd-rim-stop {
+  stop-color: #fff;
+  transition:
+    stop-color 300ms ease-out,
+    stop-opacity 300ms ease-out;
+}
+
+.vd-tint-stop {
+  stop-opacity: 0.04;
+}
+
+.vd-rim-stop {
+  stop-opacity: 0.22;
+}
+
+.vd-tint-stop[data-tint="live"],
+.vd-rim-stop[data-tint="live"] {
+  stop-color: var(--_live);
+}
+
+.vd-tint-stop[data-tint="warn"],
+.vd-rim-stop[data-tint="warn"] {
+  stop-color: var(--_warn);
+}
+
+.vd-tint-stop[data-tint="danger"],
+.vd-rim-stop[data-tint="danger"] {
+  stop-color: var(--_danger);
+}
+
+.vd-tint-stop[data-tint="share"],
+.vd-rim-stop[data-tint="share"] {
+  stop-color: var(--_share);
+}
+
+.vd-tint-stop:is([data-tint="live"], [data-tint="warn"], [data-tint="danger"], [data-tint="share"]) {
+  stop-opacity: 0.3;
+}
+
+.vd-rim-stop:is([data-tint="live"], [data-tint="warn"], [data-tint="danger"], [data-tint="share"]) {
+  stop-opacity: 0.85;
+}
+
+.vd-tint-stop[data-tint="bright"] {
+  stop-opacity: 0.12;
+}
+
+.vd-rim-stop[data-tint="bright"] {
+  stop-opacity: 0.42;
+}
+
+.vd-sheen-top {
+  stop-color: #fff;
+  stop-opacity: 0.16;
+}
+
+.vd-sheen-middle {
+  stop-color: #fff;
+  stop-opacity: 0.03;
+}
+
+.vd-sheen-bottom {
+  stop-color: #fff;
+  stop-opacity: 0;
+}
+
+/* ── The beads ───────────────────────────────────────────────────────────────────────────────────── */
 
 .vd-bead {
   position: absolute;
@@ -88,6 +194,7 @@
 
 .vd-dot {
   position: relative;
+  z-index: 1;
   flex: none;
   width: 7px;
   height: 7px;
@@ -140,6 +247,8 @@
 }
 
 .vd-status .vd-word {
+  position: relative;
+  z-index: 1;
   flex: none;
   width: 0;
   overflow: hidden;
@@ -149,6 +258,120 @@
   line-height: 1;
   white-space: nowrap;
   opacity: 0;
+}
+
+.vd[data-appearance="glass"] .vd-dot {
+  filter: drop-shadow(0 0 3px var(--_live));
+}
+
+.vd[data-appearance="glass"]:is([data-status="connecting"], [data-status="reconnecting"]) .vd-dot {
+  filter: drop-shadow(0 0 3px var(--_warn));
+}
+
+.vd[data-appearance="glass"][data-status="ended"] .vd-dot {
+  filter: none;
+}
+
+/* glass, while connecting: the word lit in amber over a drift of soft lights, like work going on */
+.vd[data-appearance="glass"] .vd-status .vd-word {
+  color: color-mix(in srgb, var(--_warn) 82%, #fff);
+  text-shadow: 0 0 10px color-mix(in srgb, var(--_warn) 55%, transparent);
+}
+
+.vd[data-appearance="glass"][data-status="ended"] .vd-status .vd-word {
+  color: var(--_quiet);
+  text-shadow: none;
+}
+
+.vd-bokeh {
+  position: absolute;
+  inset: 8px 12px;
+  display: none;
+  pointer-events: none;
+}
+
+.vd[data-appearance="glass"]:is([data-status="connecting"], [data-status="reconnecting"]) .vd-bokeh {
+  display: block;
+}
+
+.vd-bokeh i {
+  position: absolute;
+  top: 50%;
+  width: 7px;
+  height: 7px;
+  margin-top: -3.5px;
+  border-radius: 50%;
+  background: var(--_warn);
+  opacity: 0;
+  filter: blur(1.6px);
+  animation: vd-drift 2.6s ease-in-out infinite;
+}
+
+.vd-bokeh i:nth-child(1) {
+  left: 4%;
+  translate: 0 -7px;
+  animation-delay: -0.3s;
+}
+
+.vd-bokeh i:nth-child(2) {
+  left: 18%;
+  width: 5px;
+  height: 5px;
+  translate: 0 8px;
+  animation-delay: -1.1s;
+  animation-duration: 3.1s;
+}
+
+.vd-bokeh i:nth-child(3) {
+  left: 33%;
+  translate: 0 -2px;
+  animation-delay: -1.9s;
+}
+
+.vd-bokeh i:nth-child(4) {
+  left: 47%;
+  width: 9px;
+  height: 9px;
+  translate: 0 9px;
+  animation-delay: -0.7s;
+  animation-duration: 3.4s;
+}
+
+.vd-bokeh i:nth-child(5) {
+  left: 61%;
+  width: 5px;
+  height: 5px;
+  translate: 0 -9px;
+  animation-delay: -2.2s;
+}
+
+.vd-bokeh i:nth-child(6) {
+  left: 75%;
+  translate: 0 4px;
+  animation-delay: -1.5s;
+  animation-duration: 2.9s;
+}
+
+.vd-bokeh i:nth-child(7) {
+  left: 88%;
+  width: 6px;
+  height: 6px;
+  translate: 0 -5px;
+  animation-delay: -0.1s;
+}
+
+@keyframes vd-drift {
+  0% {
+    opacity: 0;
+    transform: translateX(-6px) scale(0.6);
+  }
+  45% {
+    opacity: 0.5;
+  }
+  100% {
+    opacity: 0;
+    transform: translateX(9px) scale(1);
+  }
 }
 
 /* ── The voice: seven bars; muted, a slash is drawn across them ──────────────────────────────────── */
@@ -172,39 +395,50 @@
   background: var(--_live);
 }
 
-/* The slash runs from the top left to the bottom right. Its wide twin in the surface colour cuts the bars
-   where it passes; the script draws both in on mute and sweeps them out past the end on unmute. */
+.vd[data-appearance="glass"][data-talking] .vd-wave i {
+  background: color-mix(in srgb, var(--_live) 72%, #fff);
+}
+
+.vd[data-appearance="glass"][data-talking] .vd-wave {
+  filter: drop-shadow(0 0 3px color-mix(in srgb, var(--_live) 75%, transparent));
+}
+
+/* muted: the slash runs from the top left to the bottom right, and the bars are cut where it passes —
+   a mask, so the cut shows whatever is under the dock */
+.vd[data-muted] .vd-wave {
+  -webkit-mask-image: linear-gradient(50.7deg, #000 calc(50% - 3.5px), transparent calc(50% - 3.5px) calc(50% + 3.5px), #000 calc(50% + 3.5px));
+  mask-image: linear-gradient(50.7deg, #000 calc(50% - 3.5px), transparent calc(50% - 3.5px) calc(50% + 3.5px), #000 calc(50% + 3.5px));
+}
+
 .vd-slash {
   position: absolute;
   width: 40px;
   height: 40px;
   overflow: visible;
   fill: none;
+  stroke: var(--_ink);
   stroke-linecap: round;
+  stroke-width: 2.4px;
   pointer-events: none;
+  transition: stroke 200ms ease-out;
 }
 
+/* the script draws the slash in on mute and sweeps it out past the end on unmute */
 .vd-slash path {
   stroke-dasharray: 1;
   stroke-dashoffset: 1;
-}
-
-.vd-slash-cut {
-  stroke: var(--_surface);
-  stroke-width: 7px;
-}
-
-.vd-slash-line {
-  stroke: var(--_ink);
-  stroke-width: 2.4px;
-  transition: stroke 200ms ease-out;
 }
 
 .vd[data-muted] .vd-slash path {
   stroke-dashoffset: 0;
 }
 
-/* ── The screen: a window, green while it is shared ──────────────────────────────────────────────── */
+.vd[data-appearance="glass"] .vd-slash {
+  stroke: #fff;
+  filter: drop-shadow(0 0 3px color-mix(in srgb, var(--_danger) 80%, transparent));
+}
+
+/* ── The screen: a window, lit while it is shared ────────────────────────────────────────────────── */
 
 .vd-window {
   position: relative;
@@ -214,6 +448,7 @@
   background: var(--_quiet);
   transition:
     background-color 250ms ease-out,
+    box-shadow 250ms ease-out,
     opacity 250ms ease-out;
 }
 
@@ -243,7 +478,18 @@
 }
 
 .vd[data-sharing] .vd-window {
-  background: var(--_live);
+  background: var(--_share);
+}
+
+.vd[data-appearance="glass"] .vd-window {
+  background: rgb(255 255 255 / 7%);
+  box-shadow: inset 0 0 0 1.5px rgb(255 255 255 / 55%);
+}
+
+.vd[data-appearance="glass"][data-sharing] .vd-window {
+  background: color-mix(in srgb, var(--_share) 34%, transparent);
+  box-shadow: inset 0 0 0 1.5px color-mix(in srgb, var(--_share) 80%, #fff);
+  filter: drop-shadow(0 0 5px color-mix(in srgb, var(--_share) 65%, transparent));
 }
 
 /* ── Exit: one word; after the first press, a question ───────────────────────────────────────────── */
@@ -254,11 +500,18 @@
   line-height: 1;
   white-space: nowrap;
   animation: vd-word-in 240ms cubic-bezier(0.23, 1, 0.32, 1);
-  transition: color 200ms ease-out;
+  transition:
+    color 200ms ease-out,
+    text-shadow 200ms ease-out;
 }
 
 .vd[data-armed] .vd-exit .vd-word {
   color: var(--_danger);
+}
+
+.vd[data-appearance="glass"][data-armed] .vd-exit .vd-word {
+  color: color-mix(in srgb, var(--_danger) 80%, #fff);
+  text-shadow: 0 0 12px color-mix(in srgb, var(--_danger) 60%, transparent);
 }
 
 @keyframes vd-word-in {
@@ -310,6 +563,11 @@
   pointer-events: none;
 }
 
+.vd[data-appearance="glass"] .vd-tip {
+  background: rgb(30 30 34 / 94%);
+  box-shadow: inset 0 0 0 1px rgb(255 255 255 / 14%);
+}
+
 .vd-bead:focus-visible .vd-tip {
   opacity: 1;
   transform: translate(-50%, 0);
@@ -326,8 +584,12 @@
     background: color-mix(in srgb, var(--_quiet) 78%, var(--_ink));
   }
 
+  .vd[data-appearance="glass"]:not([data-sharing]) .vd-screen:not(:disabled):hover .vd-window {
+    background: rgb(255 255 255 / 14%);
+  }
+
   /* a muted voice under the pointer: the slash lifts a little, the bars stir (voice-dock.tsx) */
-  .vd[data-muted] .vd-voice:not(:disabled):hover .vd-slash-line {
+  .vd[data-muted] .vd-voice:not(:disabled):hover .vd-slash {
     stroke: color-mix(in srgb, var(--_ink) 50%, var(--_surface));
   }
 }
@@ -339,8 +601,13 @@
 
 @media (prefers-reduced-motion: reduce) {
   .vd-dot,
-  .vd-dot::after {
+  .vd-dot::after,
+  .vd-bokeh i {
     animation: none !important;
+  }
+
+  .vd-bokeh i {
+    opacity: 0.35;
   }
 
   .vd-exit .vd-word {

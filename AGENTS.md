@@ -4,22 +4,23 @@
 
 ## Install
 
-Copy `voice-dock.tsx` and `voice-dock.css` into the app, side by side. `voice-dock.tsx` imports the CSS itself and starts with `"use client"`. It needs React 19.2 or newer (`useEffectEvent`) and nothing else; there is no npm package. `example.tsx` is a complete, typed usage.
+`npm i github:Likemiens/voice-dock`, then `import { VoiceDock } from "@likemiens/voice-dock"`: JavaScript with its types, and it imports its CSS itself. Or copy `voice-dock.tsx` and `voice-dock.css` into the app, side by side, and import from `./voice-dock`. It starts with `"use client"` and needs React 19.2 or newer (`useEffectEvent`), nothing else. `example.tsx` is a complete, typed usage.
 
 ## Contract
 
 ```tsx
-import { VoiceDock, type VoiceDockLabels, type VoiceDockStatus, type VoiceDockSize } from "./voice-dock";
+import { VoiceDock, type VoiceDockLabels, type VoiceDockStatus, type VoiceDockSize, type VoiceDockAppearance } from "@likemiens/voice-dock";
 
 <VoiceDock
   status={status}     // required: "connecting" | "live" | "reconnecting" | "ended"
   labels={labels}     // required: VoiceDockLabels, 13 strings
   muted={muted}       // false: a slash across the waveform
-  sharing={sharing}   // false: the window turns green
+  sharing={sharing}   // false: the window lights up
   menuOpen={open}     // false: turns the More dots; the menu is the app's
   level={read}        // 0: a number 0…1, or () => 0…1 read every animation frame
   armed={armed}       // leave it out and the dock keeps it, letting go after 4 s
   size={48}           // 36 | 42 | 48: the height of a bead
+  appearance="glass"  // "glass" (tinted smoked glass, lit icons) | "flat" (plain grey)
   onMutedChange={(muted) => {}}
   onSharingChange={(sharing) => {}}
   onMenuOpenChange={(open) => {}} // also on Esc while the menu is open
@@ -28,7 +29,7 @@ import { VoiceDock, type VoiceDockLabels, type VoiceDockStatus, type VoiceDockSi
 />
 ```
 
-Labels: `dock connecting live reconnecting ended mute unmute share unshare exit confirm confirmExit more`. Colours: `--vd-surface --vd-ink --vd-quiet --vd-live --vd-warn --vd-danger --vd-focus`, on the dock or any parent. Keyboard: ← → Home End move between the beads, Enter and Space press, Esc takes Exit back or else closes the menu.
+Labels: `dock connecting live reconnecting ended mute unmute share unshare exit confirm confirmExit more`. Colours: `--vd-surface --vd-glass --vd-ink --vd-quiet --vd-live --vd-warn --vd-danger --vd-share --vd-focus`, on the dock or any parent; each look has its own fallbacks (`--vd-surface` is the flat body, `--vd-glass` the glass one). Keyboard: ← → Home End move between the beads, Enter and Space press, Esc takes Exit back or else closes the menu.
 
 ## Recipes
 
@@ -77,7 +78,8 @@ Sharing can also stop from the browser's own "Stop sharing" bar: listen for the 
 - **`armed`:** leave it out, or own it fully by passing `armed` and setting it from `onArmedChange`. Controlled, the 4 s timeout is yours; Esc, focus leaving Exit and the second press still call `onArmedChange(false)`.
 - **`"ended"`** folds the dock into its first bead and makes every button inert, so focus leaves the dock: move it somewhere useful, such as a rejoin button. Any other status unfolds it. Until `"live"`, the microphone and screen beads are disabled.
 - **`size`** is 36, 42 or 48 only: the dock is drawn at 48 px and scaled with CSS `zoom`. Use `size` rather than a transform, so tooltips keep their size.
-- Only the seven `--vd-*` colours are variables. The tooltips (`#232b35`, white text) and the window's dots are fixed in voice-dock.css.
+- Only the nine `--vd-*` colours are variables. The tooltips (`#232b35`, or dark glass in the glass look, with white text), the glass rim and sheen and the window's dots are fixed in voice-dock.css.
+- **`appearance="glass"`** is dark by nature, like a phone's dark controls: it reads on a light page too, but it is made for a dark one. On a light app with a light toolbar, `"flat"` is the quieter choice.
 - `font-family: var(--ui-font)` in voice-dock.css is a variable of the author's site. Without it, the dock inherits the page's font.
 - **Next.js:** the App Router is fine; render the dock from a client component, because it takes functions. The Pages Router allows global CSS only in `pages/_app`: move `import "./voice-dock.css"` there.
 

@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState, type CSSProperties } from "react";
-import { VoiceDock, type VoiceDockLabels, type VoiceDockStatus } from "./voice-dock";
+import { VoiceDock, type VoiceDockLabels, type VoiceDockStatus } from "@likemiens/voice-dock";
 
 const labels: VoiceDockLabels = {
   dock: "Voice session",

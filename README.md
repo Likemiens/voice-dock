@@ -29,22 +29,24 @@ It is a React component in two files. It only draws: your app keeps the call, an
 - **Follows the voice.** Seven bars move with the level you pass. Muting draws a slash that cuts through them. Pass a function, and the bars move without re-rendering React.
 - **Exit asks once more.** The first press turns Exit into a question, the second one ends the call. If nothing happens, it lets go after 4 seconds.
 - **Keyboard and screen readers.** One Tab stop, arrow keys between the beads, Esc to step back. Status changes are announced, and every word comes from you.
-- **Three sizes, your colours.** 48, 42 or 36 px high, and the tooltips keep their size. Seven CSS custom properties for the colours.
+- **Two looks, three sizes, your colours.** Smoked glass tinted bead by bead with the colour of its state, with lit icons and words (the default), or plain flat grey. 48, 42 or 36 px high, and the tooltips keep their size. Nine CSS custom properties for the colours.
 - **Light.** No dependencies besides React 19.2. It rests while off-screen and respects "reduce motion".
 
 ## Quick start
 
-Copy `voice-dock.tsx` and `voice-dock.css` into your project, side by side. Or fetch the folder:
+Install it:
 
 ```bash
-npx degit Likemiens/voice-dock components/voice-dock
+npm i github:Likemiens/voice-dock
 ```
+
+Or copy `voice-dock.tsx` and `voice-dock.css` into your project, side by side, and import from `./voice-dock`.
 
 Then give it your call's state:
 
 ```tsx
 import { useState } from "react";
-import { VoiceDock, type VoiceDockLabels } from "./voice-dock"; // brings voice-dock.css with it
+import { VoiceDock, type VoiceDockLabels } from "@likemiens/voice-dock"; // brings voice-dock.css with it
 
 const labels: VoiceDockLabels = {
   dock: "Voice session",

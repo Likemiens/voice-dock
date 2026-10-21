@@ -3,6 +3,7 @@
 import {
   useEffect,
   useEffectEvent,
+  useId,
   useLayoutEffect,
   useRef,
   useState,
@@ -16,13 +17,18 @@ import "./voice-dock.css";
 // on one thread. Neighbouring beads meet at a waist: each bead bevels down to it with an S-curve (see side()),
 // and the outer ends are rounded. Widths and heights ride on springs: a bead swells under the pointer and
 // bounces when it is toggled, Exit stretches to its question, and an ended session folds every bead into the
-// first, each end rounding off as its neighbour goes. The script draws the outline into one SVG path; the
+// first, each end rounding off as its neighbour goes. The script draws the thread as one outline (chain()); the
 // buttons on top carry the icons, the words, the focus ring and everything a screen reader hears.
+//
+// Two looks share that outline. "glass" is smoked glass tinted bead by bead with the colour of its state, a
+// rim and a sheen, with lit icons and words; "flat" is the plain grey of the first reference.
 
 export type VoiceDockStatus = "connecting" | "live" | "reconnecting" | "ended";
 
 /** The height of a bead, px. The whole dock scales with it. */
 export type VoiceDockSize = 36 | 42 | 48;
+
+export type VoiceDockAppearance = "glass" | "flat";
 
 /** Every word the dock shows or says to a screen reader. */
 export type VoiceDockLabels = {
@@ -49,7 +55,7 @@ export type VoiceDockProps = {
   status: VoiceDockStatus;
   /** the microphone is off: a slash is drawn across the waveform */
   muted?: boolean;
-  /** the screen is shared: the window turns green */
+  /** the screen is shared: the window lights up */
   sharing?: boolean;
   /** the menu bead is open; the menu itself is yours to render */
   menuOpen?: boolean;
@@ -59,6 +65,8 @@ export type VoiceDockProps = {
   armed?: boolean;
   /** the height of a bead, 48 by default */
   size?: VoiceDockSize;
+  /** tinted smoked glass with lit icons ("glass", the default) or plain grey ("flat") */
+  appearance?: VoiceDockAppearance;
   onMutedChange?: (muted: boolean) => void;
   onSharingChange?: (sharing: boolean) => void;
   onMenuOpenChange?: (open: boolean) => void;
@@ -85,6 +93,7 @@ const EXIT = 3;
 const MENU = 4;
 const BARS = [0.44, 0.37, 0.96, 0.78, 0.37, 1, 0.37]; // the resting shape of the waveform
 const CASCADE = 32; // ms between two bars as the slash crosses them
+const LAYERS = 5; // the outline is drawn as the body, the tint, the sheen and the rim, and clips the rim
 
 const clamp = (value: number) => Math.min(1, Math.max(0, value));
 const round = (value: number) => Math.round(value * 100) / 100;
@@ -172,33 +181,53 @@ function side(w: number, h: number, join: number): [number, number][] {
   return end.map(([dx, y], index) => [mix(dx, waist[index][0], join), mix(y, waist[index][1], join)]);
 }
 
-/** One bead as a closed, clockwise outline. A joined side reaches 0.6px past its edge, under the neighbour,
- *  so the two leave no hairline where they meet. */
-function outline(x: number, w: number, h: number, joinLeft: number, joinRight: number) {
-  const mirror = (y: number) => H - y;
-  const p = (px: number, py: number) => `${round(px)} ${round(py)}`;
-  const l = side(w, h, joinLeft);
-  const r = side(w, h, joinRight);
-  const xl = x;
-  const xr = x + w;
-  const ol = 0.6 * joinLeft;
-  const or = 0.6 * joinRight;
-  return (
-    `M${p(xl + l[0][0], l[0][1])}` +
-    `L${p(xr - r[0][0], r[0][1])}` +
-    `C${p(xr - r[1][0], r[1][1])} ${p(xr - r[2][0], r[2][1])} ${p(xr - r[3][0], r[3][1])}` +
-    `L${p(xr + or, r[3][1])}L${p(xr + or, mirror(r[3][1]))}L${p(xr, mirror(r[3][1]))}` +
-    `C${p(xr - r[2][0], mirror(r[2][1]))} ${p(xr - r[1][0], mirror(r[1][1]))} ${p(xr - r[0][0], mirror(r[0][1]))}` +
-    `L${p(xl + l[0][0], mirror(l[0][1]))}` +
-    `C${p(xl + l[1][0], mirror(l[1][1]))} ${p(xl + l[2][0], mirror(l[2][1]))} ${p(xl + l[3][0], mirror(l[3][1]))}` +
-    `L${p(xl - ol, mirror(l[3][1]))}L${p(xl - ol, l[3][1])}L${p(xl, l[3][1])}` +
-    `C${p(xl + l[2][0], l[2][1])} ${p(xl + l[1][0], l[1][1])} ${p(xl + l[0][0], l[0][1])}Z`
-  );
+type Piece = { x: number; w: number; h: number; left: number; right: number };
+
+/**
+ * The whole thread as one closed, clockwise outline: the tops of the beads left to right, down the far end,
+ * their bottoms right to left, up the near end. Two neighbours meet where their sides reach the shared edge;
+ * a short vertical step joins them while one folds and their waists differ. One outline, so it can carry a rim.
+ */
+function chain(pieces: Piece[]) {
+  if (!pieces.length) return "";
+  const p = (x: number, y: number) => `${round(x)} ${round(y)}`;
+  const m = (y: number) => H - y;
+  const sides = pieces.map((piece) => ({ l: side(piece.w, piece.h, piece.left), r: side(piece.w, piece.h, piece.right) }));
+  let d = `M${p(pieces[0].x + sides[0].l[0][0], sides[0].l[0][1])}`;
+  pieces.forEach((piece, k) => {
+    const { r } = sides[k];
+    const xr = piece.x + piece.w;
+    d += `L${p(xr - r[0][0], r[0][1])}C${p(xr - r[1][0], r[1][1])} ${p(xr - r[2][0], r[2][1])} ${p(xr, r[3][1])}`;
+    const next = pieces[k + 1];
+    if (next) {
+      const { l } = sides[k + 1];
+      d += `L${p(next.x, l[3][1])}C${p(next.x + l[2][0], l[2][1])} ${p(next.x + l[1][0], l[1][1])} ${p(next.x + l[0][0], l[0][1])}`;
+    } else {
+      d += `L${p(xr, m(r[3][1]))}C${p(xr - r[2][0], m(r[2][1]))} ${p(xr - r[1][0], m(r[1][1]))} ${p(xr - r[0][0], m(r[0][1]))}`;
+    }
+  });
+  for (let k = pieces.length - 1; k >= 0; k--) {
+    const piece = pieces[k];
+    const { l } = sides[k];
+    d += `L${p(piece.x + l[0][0], m(l[0][1]))}C${p(piece.x + l[1][0], m(l[1][1]))} ${p(piece.x + l[2][0], m(l[2][1]))} ${p(piece.x, m(l[3][1]))}`;
+    const previous = pieces[k - 1];
+    if (previous) {
+      const { r } = sides[k - 1];
+      const xr = previous.x + previous.w;
+      d += `L${p(xr, m(r[3][1]))}C${p(xr - r[2][0], m(r[2][1]))} ${p(xr - r[1][0], m(r[1][1]))} ${p(xr - r[0][0], m(r[0][1]))}`;
+    } else {
+      d += `L${p(piece.x, l[3][1])}C${p(piece.x + l[2][0], l[2][1])} ${p(piece.x + l[1][0], l[1][1])} ${p(piece.x + l[0][0], l[0][1])}Z`;
+    }
+  }
+  return d;
 }
 
 type Parts = {
   row: HTMLDivElement | null;
-  shape: SVGPathElement | null;
+  /** the outline's layers: body, tint, sheen, rim and the rim's clip */
+  paths: (SVGPathElement | null)[];
+  /** the gradient stops of the tint and the rim, one per bead each, placed at the bead's middle */
+  stops: (SVGStopElement | null)[];
   beads: (HTMLElement | null)[];
   bars: (HTMLElement | null)[];
   word: HTMLSpanElement | null;
@@ -232,7 +261,7 @@ class Motion {
   raf = 0;
   last = 0;
   /** the elements it draws into, handed over by their refs */
-  parts: Parts = { row: null, shape: null, beads: [], bars: [], word: null };
+  parts: Parts = { row: null, paths: [], stops: [], beads: [], bars: [], word: null };
 
   layout({ status, enabled, hover, press, widths }: Layout) {
     const ended = status === "ended";
@@ -302,10 +331,10 @@ class Motion {
   }
 
   draw() {
-    const { row, shape, beads, word } = this.parts;
+    const { row, paths, stops, beads, word } = this.parts;
     if (!row) return;
     let x = 0;
-    let d = "";
+    const pieces: Piece[] = [];
     this.beads.forEach((bead, index) => {
       const w = Math.max(0, bead.w.x);
       const h = Math.max(0, bead.h.x);
@@ -319,11 +348,17 @@ class Motion {
         // a folding bead lets its icon go before it is gone
         if (index) node.style.opacity = String(round(clamp((w / (bead.base || DOT) - 0.3) / 0.5)));
       }
-      if (w < 0.5 || h < 0.5) return;
-      d += outline(bead.x, w, h, this.presence(index - 1), this.presence(index + 1));
+      if (w >= 0.5 && h >= 0.5) pieces.push({ x: bead.x, w, h, left: this.presence(index - 1), right: this.presence(index + 1) });
     });
     row.style.width = `${round(x)}px`;
-    shape?.setAttribute("d", d);
+    const d = chain(pieces);
+    for (const path of paths) path?.setAttribute("d", d);
+    // each bead's tint sits at its middle; between two beads the colours blend across the waist
+    this.beads.forEach((bead, index) => {
+      const offset = String(round(x ? clamp((bead.x + Math.max(0, bead.w.x) / 2) / x) : 0));
+      stops[index]?.setAttribute("offset", offset);
+      stops[index + this.beads.length]?.setAttribute("offset", offset);
+    });
 
     // The status word opens with its bead: 0 is the dot alone, 1 the dot and the whole word.
     if (word) {
@@ -365,7 +400,7 @@ class Motion {
   }
 }
 
-type Lists = "beads" | "bars";
+type Lists = "beads" | "bars" | "paths" | "stops";
 
 /** Hands an element to the motion as its ref is set. */
 function put<K extends Lists>(motion: Motion | null, list: K, index: number, node: Parts[K][number]) {
@@ -380,6 +415,7 @@ export function VoiceDock({
   level = 0,
   armed: armedProp,
   size = 48,
+  appearance = "glass",
   onMutedChange,
   onSharingChange,
   onMenuOpenChange,
@@ -404,6 +440,7 @@ export function VoiceDock({
   if (motion.current === null) motion.current = new Motion();
   const slash = useRef<SVGSVGElement>(null);
   const toggled = useRef({ muted, sharing, menuOpen });
+  const id = useId().replace(/[^\w-]/g, "");
 
   const enabled = [false, live, live, !ended, !ended];
   // one stop for Tab; the arrows move along the beads
@@ -411,6 +448,14 @@ export function VoiceDock({
   const exitText = armed ? labels.confirm : labels.exit;
   // Every size is the 48px dock zoomed: the geometry stays in its own pixels, the words are measured in them.
   const zoom = size / H;
+  // the colour of each bead's glass, from its state
+  const tints = [
+    live ? "live" : ended ? "none" : "warn",
+    !live ? "none" : muted ? "danger" : "live",
+    sharing ? "share" : "none",
+    armed ? "danger" : "none",
+    menuOpen ? "bright" : "none",
+  ];
 
   useLayoutEffect(() => {
     const m = motion.current;
@@ -546,6 +591,7 @@ export function VoiceDock({
       className="vd"
       role="toolbar"
       aria-label={labels.dock}
+      data-appearance={appearance}
       data-status={status}
       data-talking={live && !muted ? "" : undefined}
       data-muted={muted ? "" : undefined}
@@ -556,14 +602,43 @@ export function VoiceDock({
       onKeyDown={onKeyDown}
     >
       <svg className="vd-surface" aria-hidden="true">
+        <defs>
+          <linearGradient id={`${id}-tint`}>
+            {tints.map((tint, index) => (
+              <stop key={index} className="vd-tint-stop" data-tint={tint} ref={(node) => put(motion.current, "stops", index, node)} />
+            ))}
+          </linearGradient>
+          <linearGradient id={`${id}-rim`}>
+            {tints.map((tint, index) => (
+              <stop key={index} className="vd-rim-stop" data-tint={tint} ref={(node) => put(motion.current, "stops", index + tints.length, node)} />
+            ))}
+          </linearGradient>
+          <linearGradient id={`${id}-sheen`} x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0" className="vd-sheen-top" />
+            <stop offset="0.5" className="vd-sheen-middle" />
+            <stop offset="1" className="vd-sheen-bottom" />
+          </linearGradient>
+          <clipPath id={`${id}-clip`}>
+            <path ref={(node) => put(motion.current, "paths", LAYERS - 1, node)} />
+          </clipPath>
+        </defs>
+        <path className="vd-body" ref={(node) => put(motion.current, "paths", 0, node)} />
+        <path className="vd-tint" fill={`url(#${id}-tint)`} ref={(node) => put(motion.current, "paths", 1, node)} />
+        <path className="vd-sheen" fill={`url(#${id}-sheen)`} ref={(node) => put(motion.current, "paths", 2, node)} />
         <path
-          ref={(node) => {
-            if (motion.current) motion.current.parts.shape = node;
-          }}
+          className="vd-rim"
+          stroke={`url(#${id}-rim)`}
+          clipPath={`url(#${id}-clip)`}
+          ref={(node) => put(motion.current, "paths", 3, node)}
         />
       </svg>
 
       <div className="vd-bead vd-status" ref={(node) => put(motion.current, "beads", 0, node)}>
+        <span className="vd-bokeh" aria-hidden="true">
+          {[0, 1, 2, 3, 4, 5, 6].map((index) => (
+            <i key={index} />
+          ))}
+        </span>
         <span className="vd-dot" />
         <span
           className="vd-word"
@@ -593,8 +668,7 @@ export function VoiceDock({
           ))}
         </span>
         <svg className="vd-slash" ref={slash} viewBox="0 0 40 40" aria-hidden="true">
-          <path className="vd-slash-cut" d="M11 9L29 31" pathLength={1} />
-          <path className="vd-slash-line" d="M11 9L29 31" pathLength={1} />
+          <path d="M11 9L29 31" pathLength={1} />
         </svg>
         <span className="vd-tip" aria-hidden="true">
           {muted ? labels.unmute : labels.mute}
