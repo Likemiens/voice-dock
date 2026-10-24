@@ -37,7 +37,7 @@ It is a React component in two files. It only draws: your app keeps the call, an
 Install it:
 
 ```bash
-npm i github:Likemiens/voice-dock
+npm i @likemiens/voice-dock
 ```
 
 Or copy `voice-dock.tsx` and `voice-dock.css` into your project, side by side, and import from `./voice-dock`.

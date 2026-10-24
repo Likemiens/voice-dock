@@ -4,7 +4,7 @@
 
 ## Install
 
-`npm i github:Likemiens/voice-dock`, then `import { VoiceDock } from "@likemiens/voice-dock"`: JavaScript with its types, and it imports its CSS itself. Or copy `voice-dock.tsx` and `voice-dock.css` into the app, side by side, and import from `./voice-dock`. It starts with `"use client"` and needs React 19.2 or newer (`useEffectEvent`), nothing else. `example.tsx` is a complete, typed usage.
+`npm i @likemiens/voice-dock`, then `import { VoiceDock } from "@likemiens/voice-dock"`: JavaScript with its types, and it imports its CSS itself. Or copy `voice-dock.tsx` and `voice-dock.css` into the app, side by side, and import from `./voice-dock`. It starts with `"use client"` and needs React 19.2 or newer (`useEffectEvent`), nothing else. `example.tsx` is a complete, typed usage.
 
 ## Contract
 
